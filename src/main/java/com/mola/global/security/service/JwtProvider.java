@@ -9,14 +9,18 @@ import com.mola.domain.member.Member;
 import com.mola.domain.member.MemberRepository;
 import com.mola.global.security.dto.LoginMemberResponse;
 import java.util.Date;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
-@Service
-public class JwtService {
+@Component
+public class JwtProvider {
 
     @Value("${JWT_SECRET_KEY}")
     private String secretKey;
@@ -83,5 +87,22 @@ public class JwtService {
                 .orElseThrow(() -> new IllegalArgumentException("No member found"));
         member.setRefreshToken(refreshToken);
         memberRepository.save(member);
+    }
+
+    public Long extractMemberIdFromToken(String token) {
+        try {
+            DecodedJWT jwt = JWT.decode(token);
+            return jwt.getClaim("memberId").asLong();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid token");
+        }
+    }
+
+    public UserDetails createUserDetails(Long memberId, String role) {
+        return User.builder()
+                .username(memberId.toString())
+                .password("")
+                .authorities(role)
+                .build();
     }
 }
