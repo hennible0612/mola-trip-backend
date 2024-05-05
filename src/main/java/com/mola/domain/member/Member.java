@@ -7,11 +7,13 @@ import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
-@Getter @Setter
+@Getter
+@Setter
 @Builder
 @Entity
 public class Member {
-    @Id @GeneratedValue
+    @Id
+    @GeneratedValue
     @Column(name = "member_id")
     private Long id;
     @Column(name = "nickname", length = 100, nullable = false)
@@ -25,4 +27,6 @@ public class Member {
             cascade = CascadeType.ALL
     )
     List<TripFriends> tripFriendsList;
+    @Column(name = "refresh_token")
+    private String refreshToken;
 }
