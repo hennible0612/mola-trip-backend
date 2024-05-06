@@ -1,6 +1,6 @@
 package com.mola.domain.trip;
 
-import com.mola.domain.member.TripFriends;
+import com.mola.domain.tripFriends.TripFriends;
 import jakarta.persistence.*;
 import lombok.*;
 
