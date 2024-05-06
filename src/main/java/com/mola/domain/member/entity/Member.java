@@ -1,9 +1,18 @@
-package com.mola.domain.member;
+package com.mola.domain.member.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
-
+import com.mola.domain.tripFriends.TripFriends;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -27,6 +36,10 @@ public class Member {
             cascade = CascadeType.ALL
     )
     List<TripFriends> tripFriendsList;
-    @Column(name = "refresh_token")
+    @Column(name = "refresh_token", length = 512)
     private String refreshToken;
+
+    public void updateRefreshToken(String refreshToken) {
+        this.refreshToken = refreshToken;
+    }
 }
