@@ -44,12 +44,10 @@ public class JwtProvider {
                 .sign(Algorithm.HMAC512(secretKey));
     }
 
-    public String createRefreshToken(Long memberId) {
+    public String createRefreshToken() {
         Date now = new Date();
         return JWT.create()
                 .withIssuer(ISSUER)
-                .withSubject("RefreshToken")
-                .withClaim("memberId", memberId)
                 .withJWTId(UUID.randomUUID().toString())
                 .withExpiresAt(new Date(now.getTime() + refreshTokenExpireTime))
                 .sign(Algorithm.HMAC512(secretKey));
@@ -61,7 +59,6 @@ public class JwtProvider {
             JWTVerifier verifier = JWT.require(algorithm)
                     .withIssuer(ISSUER)
                     .build();
-
             DecodedJWT jwt = verifier.verify(token);
             return true;
         } catch (JWTVerificationException e) {
@@ -74,7 +71,7 @@ public class JwtProvider {
     @Transactional
     public LoginResponseDto createTokens(Long memberId) {
         String accessToken = createAccessToken(memberId);
-        String refreshToken = createRefreshToken(memberId);
+        String refreshToken = createRefreshToken();
         updateRefreshToken(memberId, refreshToken);
 
         return LoginResponseDto.builder()
