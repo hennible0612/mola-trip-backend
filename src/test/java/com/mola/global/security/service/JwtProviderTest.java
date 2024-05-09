@@ -124,7 +124,7 @@ class JwtProviderTest {
     }
 
     @Test
-    @DisplayName("올바르지 않은 memberId와 refreshToken이 주어질시 refreshToken을 저장")
+    @DisplayName("올바르지 않은 memberId와 refreshToken이 주어질시 refreshToken을 저장하지 않음")
     void saveRefreshToken_fail() {
         //given
         Long memberId = 123L;
@@ -143,28 +143,28 @@ class JwtProviderTest {
     @DisplayName("올바른 엑세스토큰엣 올바른 memberId 추출")
     void extractMemberIdFromToken() {
         // given
-        Long memberId = 1L;
-        String accessToken = jwtProvider.createAccessToken(memberId);
+        Long validMemberId = 1L;
+        String accessToken = jwtProvider.createAccessToken(validMemberId);
 
         //when
         Long tokenMemberId = jwtProvider.extractMemberIdFromToken(accessToken);
 
         //then
-        assertEquals(tokenMemberId, memberId);
+        assertEquals(tokenMemberId, validMemberId);
     }
 
     @Test
     @DisplayName("옵바른 UserDetails 생성")
     void createUserDetails() {
         //given
-        Long memberId = 1L;
+        Long invalidMemberId = 1L;
         String role = "ROLE_ADMIN";
 
         //when
-        UserDetails userDetails = jwtProvider.createUserDetails(memberId, role);
+        UserDetails userDetails = jwtProvider.createUserDetails(invalidMemberId, role);
 
         //then
-        assertEquals(userDetails.getUsername(), memberId.toString());
+        assertEquals(userDetails.getUsername(), invalidMemberId.toString());
         assertEquals(userDetails.getPassword(), "");
         boolean hasAdminRole = userDetails.getAuthorities().stream()
                 .anyMatch(auth -> auth.getAuthority().equals("ROLE_ADMIN"));
