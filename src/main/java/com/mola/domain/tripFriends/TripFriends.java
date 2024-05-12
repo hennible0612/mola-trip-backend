@@ -1,7 +1,7 @@
 package com.mola.domain.tripFriends;
 
 import com.mola.domain.member.entity.Member;
-import com.mola.domain.trip.TripPlan;
+import com.mola.domain.trip.entity.TripPlan;
 import jakarta.persistence.*;
 import lombok.*;
 
