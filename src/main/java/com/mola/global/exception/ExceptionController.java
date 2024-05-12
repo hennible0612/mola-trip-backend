@@ -1,5 +1,6 @@
 package com.mola.global.exception;
 
+import com.mola.domain.trip.exception.TripException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -15,5 +16,10 @@ public class ExceptionController {
         return ResponseEntity.status(e.getErrorCode().getHttpStatus()).body(response);
     }
 
+    @ExceptionHandler(TripException.class)
+    public ResponseEntity<ErrorResponseDto> handleTripException(TripException e) {
+        ErrorResponseDto response = new ErrorResponseDto(e.getErrorCode().getHttpStatus(), e.getErrorCode().getErrorMessage());
+        return ResponseEntity.status(e.getErrorCode().getHttpStatus()).body(response);
+    }
 
 }
