@@ -1,4 +1,4 @@
-package com.mola.global.config;
+package com.mola.global.auth;
 
 import com.mola.global.security.service.JwtProvider;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +12,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -21,7 +22,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfiguration {
 
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
-
+    private final DefaultOAuth2UserService oAuth2UserService;
+    private final OAuth2SuccessHandler oAuth2SuccessHandler;
+    private final OAuth2FailureHandler oAuth2FailureHandler;
     private final JwtProvider jwtProvider;
 
     private static final String[] AUTH_WHITELIST = {
@@ -57,6 +60,16 @@ public class SecurityConfiguration {
                 .exceptionHandling((exceptionHandling) -> exceptionHandling
                         .authenticationEntryPoint(authenticationEntryPoint)
                 )
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(endpoint ->
+                                endpoint.baseUri("/api/auth/oauth2"))
+                        .redirectionEndpoint(endpoint ->
+                                endpoint.baseUri("/oauth2/callback/*")
+                        ).userInfoEndpoint(endpoint ->
+                                endpoint.userService(oAuth2UserService))
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler))
                 .build();
     }
+
 }
