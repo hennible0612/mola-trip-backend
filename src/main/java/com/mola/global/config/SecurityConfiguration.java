@@ -1,6 +1,10 @@
-package com.mola.global.auth;
+package com.mola.global.config;
 
-import com.mola.global.security.service.JwtProvider;
+import com.mola.global.auth.CustomAuthenticationEntryPoint;
+import com.mola.global.auth.JwtAuthProcessFilter;
+import com.mola.global.auth.OAuth2FailureHandler;
+import com.mola.global.auth.OAuth2SuccessHandler;
+import com.mola.global.auth.JwtProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;

@@ -3,7 +3,6 @@ package com.mola.global.auth;
 
 import com.mola.domain.member.dto.LoginResponseDto;
 import com.mola.domain.member.entity.Member;
-import com.mola.global.security.service.JwtProvider;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

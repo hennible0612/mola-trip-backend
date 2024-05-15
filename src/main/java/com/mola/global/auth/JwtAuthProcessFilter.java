@@ -1,8 +1,6 @@
 package com.mola.global.auth;
 
 
-import com.mola.global.security.service.JwtProvider;
-
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
