@@ -1,4 +1,4 @@
-package com.mola.global.security.service;
+package com.mola.global.auth;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;

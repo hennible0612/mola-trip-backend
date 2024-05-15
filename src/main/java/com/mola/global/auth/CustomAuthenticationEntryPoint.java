@@ -1,4 +1,4 @@
-package com.mola.global.config;
+package com.mola.global.auth;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

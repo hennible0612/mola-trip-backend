@@ -2,7 +2,7 @@ package com.mola.domain.chat.common;
 
 import com.mola.domain.chat.exception.StompError;
 import com.mola.domain.tripFriends.TripFriendsService;
-import com.mola.global.security.service.JwtProvider;
+import com.mola.global.auth.JwtProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
