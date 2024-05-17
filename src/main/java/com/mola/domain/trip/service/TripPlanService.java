@@ -7,10 +7,13 @@ import com.mola.domain.trip.repository.TripPlanRepository;
 import com.mola.domain.trip.repository.TripStatus;
 import com.mola.domain.tripFriends.TripFriends;
 import com.mola.domain.tripFriends.TripFriendsRepository;
+import com.mola.global.exception.CustomException;
+import com.mola.global.exception.GlobalErrorCode;
 import com.mola.global.util.SecurityUtil;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @RequiredArgsConstructor
 @Service
@@ -22,7 +25,8 @@ public class TripPlanService {
 
     private final SecurityUtil securityUtil;
 
-    public String addTripPlan(NewTripPlanDto newTripPlanDto) {
+    @Transactional
+    public void addTripPlan(NewTripPlanDto newTripPlanDto) {
 
         Member member = securityUtil.findCurrentMember();
 
@@ -44,7 +48,21 @@ public class TripPlanService {
 
         tripFriendsRepository.save(tripFriends);
 
-        return tripPlan.toString();
     }
 
+    @Transactional
+    public void addParticipant(String tripCode) {
+        Member member = securityUtil.findCurrentMember();
+
+        TripPlan tripPlan = tripPlanRepository.findByTripCode(tripCode)
+                .orElseThrow(() -> new CustomException(GlobalErrorCode.InvalidTripPlan));
+
+        TripFriends tripFriends = TripFriends.builder()
+                .member(member)
+                .tripPlan(tripPlan)
+                .isOwner(false)
+                .build();
+
+        tripFriendsRepository.save(tripFriends);
+    }
 }
