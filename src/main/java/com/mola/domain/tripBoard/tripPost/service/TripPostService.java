@@ -4,15 +4,16 @@ import com.mola.domain.member.dto.MemberTripPostDto;
 import com.mola.domain.member.entity.Member;
 import com.mola.domain.member.repository.MemberRepository;
 import com.mola.domain.tripBoard.like.entity.Likes;
-import com.mola.domain.tripBoard.tripImage.entity.TripImage;
-import com.mola.domain.tripBoard.tripImage.dto.TripImageDto;
-import com.mola.domain.tripBoard.tripPost.entity.TripPost;
 import com.mola.domain.tripBoard.like.repository.LikesRepository;
-import com.mola.domain.tripBoard.tripPost.repository.TripPostRepository;
+import com.mola.domain.tripBoard.tripImage.dto.TripImageDto;
+import com.mola.domain.tripBoard.tripImage.entity.TripImage;
+import com.mola.domain.tripBoard.tripImage.repository.TripImageRepository;
 import com.mola.domain.tripBoard.tripPost.dto.TripPostDto;
 import com.mola.domain.tripBoard.tripPost.dto.TripPostListResponseDto;
 import com.mola.domain.tripBoard.tripPost.dto.TripPostResponseDto;
 import com.mola.domain.tripBoard.tripPost.dto.TripPostUpdateDto;
+import com.mola.domain.tripBoard.tripPost.entity.TripPost;
+import com.mola.domain.tripBoard.tripPost.repository.TripPostRepository;
 import com.mola.global.exception.CustomException;
 import com.mola.global.exception.GlobalErrorCode;
 import jakarta.persistence.EntityManager;
@@ -38,13 +39,15 @@ public class TripPostService {
 
     private final TripPostRepository tripPostRepository;
 
+    private final TripImageRepository tripImageRepository;
+
     private final MemberRepository memberRepository;
 
     private final LikesRepository likesRepository;
 
     private final ModelMapper modelMapper;
 
-    private final EntityManager entityManager;
+    private final EntityManager em;
 
     private static final int MAX_RETRY = 3;
 
@@ -52,13 +55,11 @@ public class TripPostService {
 
     public List<TripPostListResponseDto> getAllTripPosts(Pageable pageable) {
         Page<TripPost> all = tripPostRepository.findAll(pageable);
+        return all.stream().map(TripPost::toTripPostListResponseDto).collect(Collectors.toList());
+    }
 
-        List<TripPostListResponseDto> list = new ArrayList<>();
-        all.forEach(tripPost -> {
-            list.add(TripPost.toTripPostListResponseDto(tripPost));
-        });
-
-        return list;
+    public boolean isPublic(Long id) {
+        return tripPostRepository.isPublic(id);
     }
 
     public boolean existsTripPost(Long id){
@@ -75,54 +76,54 @@ public class TripPostService {
     }
 
     @Transactional
-    public Map<String, Long> createDraftTripPost(){
-        Long memberId = getMemberId();
-        Long tripPostId = tripPostRepository.save(TripPost.createDraft()).getId();
+    public Map<String, Long> createDraftTripPost() {
+        Long memberId = getAuthenticatedMemberId();
+        Member member = em.getReference(Member.class, memberId);
 
-        Map<String, Long> map = new HashMap<>();
+        TripPost tripPost = TripPost.createDraft(member);
+        Long tripPostId = tripPostRepository.save(tripPost).getId();
 
-        map.put("memberId", memberId);
-        map.put("tempPostId", tripPostId);
-
-        return map;
+        return Map.of("memberId", memberId, "tempPostId", tripPostId);
     }
 
     @Transactional
     public TripPostResponseDto save(TripPostDto tripPostDto){
+        tripPostDto.getTripImageDtos().forEach(t -> {
+            tripImageRepository.toPublicImages(t.getId());
+        });
 
+        TripPost byId = findById(tripPostDto.getId());
 
+        modelMapper.map(tripPostDto, byId);
+        TripPostResponseDto dto = modelMapper.map(byId, TripPostResponseDto.class);
+        dto.setMemberId(byId.getMember().getId());
+        dto.setNickname(byId.getMember().getNickname());
 
-        return new TripPostResponseDto();
+        return dto;
     }
 
     @Transactional
-    public TripPostResponseDto update(TripPostUpdateDto tripPostUpdateDto){
-        if(!isOwner(tripPostUpdateDto.getId())){
+    public TripPostResponseDto update(TripPostUpdateDto tripPostUpdateDto) {
+        if (!isOwner(tripPostUpdateDto.getId())) {
             throw new CustomException(GlobalErrorCode.AccessDenied);
         }
         TripPost tripPost = findById(tripPostUpdateDto.getId());
+        Set<Long> collect = tripPostUpdateDto.getTripImageList().stream().map(TripImageDto::getId).collect(Collectors.toSet());
 
-        Set<Long> collect = tripPostUpdateDto.getTripImageList().stream()
-                .map(TripImageDto::getId)
-                .collect(Collectors.toSet());
-
-        List<TripImage> tripImages = new ArrayList<>();
-
-        tripPost.getImageUrl().forEach(tripImage -> {
-            if(!collect.contains(tripImage.getId())){
-                tripImage.setTripPostNull();
-            } else {
-                tripImages.add(tripImage);
-            }
-        });
-
+        List<TripImage> tripImages = filterAndAssignTripImages(tripPost, collect);
         tripPost.setImageUrl(tripImages);
-
         modelMapper.map(tripPostUpdateDto, tripPost);
-        TripPost save = tripPostRepository.save(tripPost);
+        return tripPostRepository.getTripPostResponseDtoById(tripPostRepository.save(tripPost).getId());
+    }
 
-//        return TripPost.toTripPostResponseDto(save);
-        return new TripPostResponseDto();
+    private List<TripImage> filterAndAssignTripImages(TripPost tripPost, Set<Long> collect) {
+        return tripPost.getImageUrl().stream().filter(tripImage -> {
+            if (!collect.contains(tripImage.getId())) {
+                tripImage.setTripPostNull();
+                return false;
+            }
+            return true;
+        }).collect(Collectors.toList());
     }
 
     @Transactional
@@ -139,84 +140,68 @@ public class TripPostService {
 
     @Transactional
     public void addLikes(Long tripPostId) throws InterruptedException {
-        int retryCount = 0;
+        Long memberId = getAuthenticatedMemberId();
+        validateTripPostAndMember(tripPostId, memberId, true);
 
-        Long memberId = getMemberId();
-
-        if(!tripPostRepository.existsById(tripPostId)){
-            throw new CustomException(GlobalErrorCode.InvalidTripPostIdentifier);
-        }
-
-        if(likesRepository.existsByMemberIdAndTripPostId(memberId, tripPostId)){
-            throw new CustomException(GlobalErrorCode.DuplicateLike);
-        }
-
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomException(GlobalErrorCode.InvalidMemberIdentifierFormat));
-
-
-        while(retryCount < MAX_RETRY) {
-            try {
-                TripPost post = tripPostRepository.findByIdWithOptimisticLock(tripPostId);
-                Likes likes = new Likes();
-                likes.setMember(member);
-                likes.setTripPost(post);
-
-                post.addLikes(likes);
-                member.addLikes(likes);
-                likesRepository.save(likes);
-                tripPostRepository.save(post);
-
-                return;
-            } catch (OptimisticLockException e) {
-                log.info("tripPostId: {} 충돌 발생", tripPostId);
-                Thread.sleep(RETRY_DELAY);
-                retryCount++;
-            }
-        }
-
-        log.error("tripPostId: {}에 대한 최대 재시도 횟수 {}를 초과했습니다.", tripPostId, MAX_RETRY);
-        throw new CustomException(GlobalErrorCode.ExcessiveRetries);
+        TripPost post = tripPostRepository.findByIdWithOptimisticLock(tripPostId);
+        performLikesOperation(post, memberId, true);
     }
-
 
     @Transactional
     public void removeLikes(Long tripPostId) throws InterruptedException {
-        int retryCount = 0;
+        Long memberId = getAuthenticatedMemberId();
+        validateTripPostAndMember(tripPostId, memberId, false);
 
-        Long memberId = getMemberId();
+        TripPost post = tripPostRepository.findByIdWithOptimisticLock(tripPostId);
+        performLikesOperation(post, memberId, false);
+    }
 
-        if(!tripPostRepository.existsById(tripPostId)){
+    private Long getAuthenticatedMemberId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new CustomException(GlobalErrorCode.AccessDenied);
+        }
+        return Long.valueOf(authentication.getName());
+    }
+
+    private void validateTripPostAndMember(Long tripPostId, Long memberId, boolean isAdding) {
+        if (!tripPostRepository.existsById(tripPostId)) {
             throw new CustomException(GlobalErrorCode.InvalidTripPostIdentifier);
         }
-
-        if(!likesRepository.existsByMemberIdAndTripPostId(memberId, tripPostId)){
+        if (isAdding && likesRepository.existsByMemberIdAndTripPostId(memberId, tripPostId)) {
+            throw new CustomException(GlobalErrorCode.DuplicateLike);
+        } else if (!isAdding && !likesRepository.existsByMemberIdAndTripPostId(memberId, tripPostId)) {
             throw new CustomException(GlobalErrorCode.BadRequest);
         }
+    }
 
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new CustomException(GlobalErrorCode.InvalidMemberIdentifierFormat));
-
-
-        while(retryCount < MAX_RETRY) {
+    private void performLikesOperation(TripPost post, Long memberId, boolean isAdding) throws InterruptedException {
+        int retryCount = 0;
+        while (retryCount < MAX_RETRY) {
             try {
-                TripPost post = tripPostRepository.findByIdWithOptimisticLock(tripPostId);
-                Likes likes = likesRepository.findByMemberIdAndTripPostId(memberId, tripPostId);
-
-                post.deleteLikes(likes);
-                member.deleteLikes(likes);
-                likesRepository.delete(likes);
+                Member member = memberRepository.findById(memberId).orElseThrow(() -> new CustomException(GlobalErrorCode.InvalidMemberIdentifierFormat));
+                if (isAdding) {
+                    Likes likes = new Likes();
+                    likes.setMember(member);
+                    likes.setTripPost(post);
+                    post.addLikes(likes);
+                    member.addLikes(likes);
+                    likesRepository.save(likes);
+                } else {
+                    Likes likes = likesRepository.findByMemberIdAndTripPostId(memberId, post.getId());
+                    post.deleteLikes(likes);
+                    member.deleteLikes(likes);
+                    likesRepository.delete(likes);
+                }
                 tripPostRepository.save(post);
-
                 return;
             } catch (OptimisticLockException e) {
-                log.info("tripPostId: {} 충돌 발생", tripPostId);
+                log.info("tripPostId: {} 충돌 발생, 재시도 중...", post.getId());
                 Thread.sleep(RETRY_DELAY);
                 retryCount++;
             }
         }
-
-        log.error("tripPostId: {}에 대한 최대 재시도 횟수 {}를 초과했습니다.", tripPostId, MAX_RETRY);
+        log.error("tripPostId: {}에 대한 최대 재시도 횟수 {}를 초과했습니다.", post.getId(), MAX_RETRY);
         throw new CustomException(GlobalErrorCode.ExcessiveRetries);
     }
 
@@ -234,10 +219,5 @@ public class TripPostService {
     private MemberTripPostDto findValidMember(Long memberId) {
         return memberRepository.findMemberTripPostDtoById(memberId)
                 .orElseThrow(() -> new CustomException(GlobalErrorCode.AccessDenied));
-    }
-
-    public Long getMemberId() {
-        Long memberId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
-        return memberId;
     }
 }
