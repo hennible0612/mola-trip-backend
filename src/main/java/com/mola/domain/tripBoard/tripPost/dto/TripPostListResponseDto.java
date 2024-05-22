@@ -1,6 +1,9 @@
 package com.mola.domain.tripBoard.tripPost.dto;
 
+import com.mola.domain.tripBoard.tripPost.entity.TripPostStatus;
 import lombok.*;
+
+import java.time.LocalDateTime;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -17,7 +20,11 @@ public class TripPostListResponseDto {
 
     private String imageUrl;
 
+    private TripPostStatus tripPostStatus;
+
     private int commentCount;
 
     private int likeCount;
+
+    private LocalDateTime createdDate;
 }

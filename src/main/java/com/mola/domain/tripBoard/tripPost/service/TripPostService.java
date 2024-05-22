@@ -2,6 +2,7 @@ package com.mola.domain.tripBoard.tripPost.service;
 
 import com.mola.domain.member.dto.MemberTripPostDto;
 import com.mola.domain.member.entity.Member;
+import com.mola.domain.member.entity.MemberRole;
 import com.mola.domain.member.repository.MemberRepository;
 import com.mola.domain.trip.repository.TripPlanRepository;
 import com.mola.domain.tripBoard.comment.dto.CommentDto;
@@ -13,6 +14,7 @@ import com.mola.domain.tripBoard.tripPost.dto.TripPostDto;
 import com.mola.domain.tripBoard.tripPost.dto.TripPostListResponseDto;
 import com.mola.domain.tripBoard.tripPost.dto.TripPostResponseDto;
 import com.mola.domain.tripBoard.tripPost.entity.TripPost;
+import com.mola.domain.tripBoard.tripPost.entity.TripPostStatus;
 import com.mola.domain.tripBoard.tripPost.repository.TripPostRepository;
 import com.mola.global.exception.CustomException;
 import com.mola.global.exception.GlobalErrorCode;
@@ -61,7 +63,16 @@ public class TripPostService {
     private static final long RETRY_DELAY = 100;
 
     public Page<TripPostListResponseDto> getAllTripPosts(Pageable pageable) {
-        return tripPostRepository.getAllTripPostResponseDto(pageable);
+        return tripPostRepository.getAllTripPostResponseDto(null, TripPostStatus.PUBLIC, pageable);
+    }
+
+    public Page<TripPostListResponseDto> getAllMyPosts(Pageable pageable){
+        Long memberId = getAuthenticatedMemberId();
+        return tripPostRepository.getAllTripPostResponseDto(memberId, null, pageable);
+    }
+
+    public Page<TripPostListResponseDto> adminGetAllPosts(Pageable pageable){
+        return tripPostRepository.getAllTripPostResponseDto(null, null, pageable);
     }
 
     public boolean isPublic(Long id) {
@@ -74,6 +85,9 @@ public class TripPostService {
 
     public TripPostResponseDto getTripPostResponseDto(Long id){
         Long memberId = getAuthenticatedMemberId();
+        if(!isOwner(id) && !memberRepository.findRoleByMemberId(memberId).equals(MemberRole.ADMIN)){
+            throw new CustomException(GlobalErrorCode.AccessDenied);
+        }
         return tripPostRepository.getTripPostResponseDtoById(id, memberId);
     }
 
@@ -109,10 +123,12 @@ public class TripPostService {
             throw new CustomException(GlobalErrorCode.AccessDenied);
         }
 
-        TripPost byId = findById(id);
-        byId.getImageUrl().forEach(TripImage::setTripPostNull);
+        deleteById(id);
+    }
 
-        tripPostRepository.delete(byId);
+    @Transactional
+    public void deleteAdminTripPost(Long id){
+        deleteById(id);
     }
 
 
@@ -134,7 +150,6 @@ public class TripPostService {
         performLikesOperation(post, memberId, false);
     }
 
-    @Transactional
     public Page<CommentDto> getCommentsForTripPost(Long postId, Pageable pageable) {
         return tripPostRepository.getCommentsForTripPost(postId, pageable);
     }
@@ -239,4 +254,12 @@ public class TripPostService {
         modelMapper.map(tripPostDto, tripPost);
         return tripPost;
     }
+
+    private void deleteById(Long id) {
+        TripPost byId = findById(id);
+        byId.getImageUrl().forEach(TripImage::setTripPostNull);
+
+        tripPostRepository.delete(byId);
+    }
+
 }
