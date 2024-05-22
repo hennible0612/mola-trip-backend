@@ -24,7 +24,7 @@ import static com.mola.domain.tripBoard.tripPost.entity.QTripPost.tripPost;
 
 @RequiredArgsConstructor
 @Repository
-public class TripPostQueryRepositoryImpl implements TripPostQueryRepository{
+public class TripPostQueryRepositoryImpl implements TripPostRepositoryCustom{
 
     private final JPAQueryFactory jpaQueryFactory;
 
@@ -55,7 +55,7 @@ public class TripPostQueryRepositoryImpl implements TripPostQueryRepository{
 
         if (tripPostDto != null) {
             List<CommentDto> comments = getCommentsForTripPost(tripPostId);
-            tripPostDto.setCommentDtos(comments);
+            tripPostDto.setCommentDtos((Page<CommentDto>) comments);
         }
 
         return tripPostDto;
