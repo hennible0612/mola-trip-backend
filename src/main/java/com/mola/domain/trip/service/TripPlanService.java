@@ -146,37 +146,6 @@ public class TripPlanService {
 
         return tripPlanRepository.getTripPostDtoByMemberId(memberId);
     }
-//    public List<TripPlanDto> getTripPlans() {
-//        Long memberId = securityUtil.findCurrentMemberId();
-//        List<TripFriends> tripFriendsList = tripFriendsRepository.findAllByMemberId(memberId);
-//
-//        if (tripFriendsList.isEmpty()) {
-//            return Collections.emptyList();
-//        }
-//
-//        List<Long> tripPlanIds = tripFriendsList.stream()
-//                .map(tripFriends -> tripFriends.getTripPlan().getId())
-//                .distinct()
-//                .collect(Collectors.toList());
-//
-//        List<TripPlan> tripPlans = tripPlanRepository.findAllById(tripPlanIds);
-//
-//        return tripPlans.stream()
-//                .map(this::convertTripPlansToDto)
-//                .collect(Collectors.toList());
-
-//    }
-
-    private TripPlanDto convertTripPlansToDto(TripPlan tripPlan) {
-
-        return TripPlanDto.builder()
-                .tripName(tripPlan.getTripName())
-                .tripId(tripPlan.getId())
-                .tripImageUrl("https://picsum.photos/200")
-                .totalTripMember(tripPlan.getTotalTripMember())
-                .build();
-    }
-
 
     public void checkMemberIsInTrip(Long tripId) {
         getMemberTripPlan(tripId);
