@@ -98,7 +98,7 @@ public class TripPlanService {
 
     }
 
-    private TripPlan getMemberTripPlan(Long tripId) {
+    protected TripPlan getMemberTripPlan(Long tripId) {
         Long memberId = securityUtil.findCurrentMemberId();
 
         TripPlan tripPlan = tripPlanRepository.findById(tripId)

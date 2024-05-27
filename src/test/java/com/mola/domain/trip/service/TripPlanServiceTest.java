@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.mola.domain.member.entity.Member;
 import com.mola.domain.trip.dto.NewTripPlanDto;
+import com.mola.domain.trip.dto.TripListHtmlDto;
 import com.mola.domain.trip.dto.TripPlanDto;
 import com.mola.domain.trip.entity.TripPlan;
 import com.mola.domain.trip.repository.TripPlanRepository;
@@ -30,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.modelmapper.ModelMapper;
 
 @ExtendWith(MockitoExtension.class)
 class TripPlanServiceTest {
@@ -42,6 +46,9 @@ class TripPlanServiceTest {
 
     @Mock
     private SecurityUtil securityUtil;
+
+    @Mock
+    private ModelMapper modelMapper;
 
     @InjectMocks
     private TripPlanService tripPlanService;
@@ -195,6 +202,7 @@ class TripPlanServiceTest {
     void getCurrentUserTripPlans_Fail(){
         // given
         List<TripPlanDto> tripPlanDtos = new ArrayList<>();
+
         // when
         when(securityUtil.findCurrentMemberId()).thenReturn(1L);
         when(securityUtil.existMember(mockMember.getId()))
@@ -205,23 +213,60 @@ class TripPlanServiceTest {
         verify(tripPlanRepository, times(0)).getTripPostDtoByMemberId(mockMember.getId());
     }
 
-//    @DisplayName("성공적으로 TripPlan를 가지고 오지 않는다.")
-//    @Test
-//    void checkMemberIsInTrip() {
-//
-//        // given
-//        TripFriends tripFriends = TripFriends.builder()
-//                .tripPlan(mockTripPlan)
-//                .isOwner(false)
-//                .member(mockMember).build();
-//        // when
-//        when(securityUtil.findCurrentMemberId()).thenReturn(mockMember.getId());
-//        when(tripPlanRepository.findById(mockTripPlan.getId())).thenReturn(Optional.ofNullable(mockTripPlan));
-//        when(tripFriendsRepository.findByMemberAndTripPlan(mockMember.getId(), mockTripPlan.getId())).thenReturn(Optional.ofNullable(tripFriends));
-//
-//        // then
-//        assertEquals(mockTripPlan, );
-//
-//
-//    }
+    @DisplayName("사용자가 TripPlan에 속해 있는지 확인하고 검증")
+    @Test
+    void checkMemberIsInTrip_Success() {
+        // given
+        TripFriends tripFriends = TripFriends.builder()
+                .tripPlan(mockTripPlan)
+                .isOwner(false)
+                .member(mockMember)
+                .build();
+
+        // when
+        when(securityUtil.findCurrentMemberId()).thenReturn(mockMember.getId());
+        when(tripPlanRepository.findById(mockTripPlan.getId())).thenReturn(Optional.of(mockTripPlan));
+        when(tripFriendsRepository.findByMemberAndTripPlan(mockMember.getId(), mockTripPlan.getId())).thenReturn(Optional.of(tripFriends));
+
+        tripPlanService.checkMemberIsInTrip(mockTripPlan.getId());
+
+        // then
+        verify(tripPlanRepository).findById(mockTripPlan.getId());
+        verify(tripFriendsRepository).findByMemberAndTripPlan(mockMember.getId(), mockTripPlan.getId());
+    }
+
+    @DisplayName("TripPlan이 없다면 예외를 던진다")
+    @Test
+    void updateTripPlanList_TripNotFound() {
+        // given
+        Long tripId = 1L;
+        TripListHtmlDto tripListHtmlDto = new TripListHtmlDto("Updated Main List", "Updated Sub List");
+
+        when(tripPlanRepository.findById(tripId)).thenReturn(Optional.empty());
+
+        // then
+        assertThrows(CustomException.class, () -> tripPlanService.updateTripPlanList(tripId, tripListHtmlDto));
+
+        verify(tripPlanRepository, times(0)).save(any(TripPlan.class));
+    }
+
+
+    @DisplayName("updateSubPlanList 메서드가 예외를 올바르게 처리하는지 테스트")
+    @Test
+    void testUpdateSubPlanList_ExceptionHandling() {
+        // given
+        Long tripId = 1L;
+        TripListHtmlDto tripListHtmlDto = new TripListHtmlDto("Updated Main List", "Updated Sub List");
+
+        when(securityUtil.findCurrentMemberId()).thenReturn(1L);
+        when(tripPlanRepository.findById(tripId)).thenReturn(Optional.empty());
+
+        // when
+        assertThrows(CustomException.class, () -> tripPlanService.updateSubPlanList(tripId, tripListHtmlDto));
+
+        // then
+        verify(tripPlanRepository).findById(tripId);
+        verify(tripFriendsRepository, never()).findByMemberAndTripPlan(anyLong(), anyLong());
+        verify(tripPlanRepository, never()).save(any(TripPlan.class));
+    }
 }
